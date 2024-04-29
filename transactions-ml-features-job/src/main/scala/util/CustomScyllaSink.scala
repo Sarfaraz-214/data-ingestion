@@ -10,7 +10,7 @@ object CustomScyllaSink {
   def save(numTransactionsPerUser: DataStream[TransactionPerUser]): Unit = {
     val transactionTuples: DataStream[(Int, Int)] = numTransactionsPerUser.map(t => (t.userId, t.totalTransactionsCount))
 
-    //As Scylla DB is fully compatible with Apache Cassandra.
+    // As Scylla DB is fully compatible with Apache Cassandra.
     CassandraSink.addSink(transactionTuples)
       .setQuery("insert into remotebank.transactions_per_user(user_id, total_transactions_count) values (?, ?)")
       .setHost("scylla-db", 9042)

@@ -11,13 +11,10 @@ import util.{CustomAvroSink, CustomScyllaSink}
 object FlinkJobRunner {
 
   private val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-  //  env.enableCheckpointing(6000)
 
   def main(args: Array[String]): Unit = {
     val checkpointConfig: CheckpointConfig = env.getCheckpointConfig
     checkpointConfig.setCheckpointInterval(60000)
-    //    checkpointConfig.setCheckpointStorage("file:///opt/flink/checkpoint")
-    //    checkpointConfig.setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
 
     val transactionEvents: DataStream[Transaction] = KafkaConsumer.readTransactionData(env)
 

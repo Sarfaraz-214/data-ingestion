@@ -20,17 +20,87 @@ The project has 3 modules:
   Ensure that Flink, Kafka, and Scylla are properly configured and running in Docker container [See Docker Setup section]. Update the Kafka topic, file paths, and any other configuration parameters as necessary. Execute the Flink job to process transaction events in real-time and persist the results to Avro files and Scylla database.
 ```
 
-# Check [HoodieStreamer](https://hudi.apache.org/docs/hoodie_streaming_ingestion/#hudi-streamer)
-
-## Development Setup
+### Check [HoodieStreamer](https://hudi.apache.org/docs/hoodie_streaming_ingestion/#hudi-streamer)
 
 
+## Pre-requisite
+```shell
+Make sure you have below in your local machine:
+1. Python 3
+2. Docker Hub
+```
+
+## Versions
+```shell
+1. Confluent - 7.3.0
+2. Apache Spark - 3.3.2
+3. Apache Hudi - 0.14.1
+4. Scylla DB - 5.0.3
+5. Scala - 2.12.18
+6. Apache Flink - 1.14.6
+7. Docker - 25.0.2
+```
+
+## Docker Setup
+```shell
+Follow below steps to spin up Docker containers:
+
+1. Confluent Kafka environment: 
+docker network create remote_bank 
+cd transactions-producer 
+docker-compose up --build -d
+
+Once it is up, the Control Center should be available at: http://localhost:9021/
+
+
+2. Apache Spark
+
+cd transactions-job-backup
+
+docker build --no-cache -t spark-hudi . 
+
+docker run -d -v /Users/sarfarazhussain/projects/data-ingestion/data:/opt/data --name transactions-backup-job --network remote_bank spark-hudi:latest
+
+
+3. Scylla DB:
+
+docker pull scylladb/scylla:5.0.3
+
+docker run -d -p 9042:9042 --name scylla-db --hostname scylla-host --network remote_bank scylladb/scylla:5.0.3
+
+
+4. Apache Flink:
+
+cd transactions-ml-features-job/flink-docker
+docker-compose up -d
+
+
+Once all above are successfully done, you can verify using below command to check whether all container are up and running:
+
+docker ps
+
+```
+
+
+### Download Jar
+[Hudi-Utilities-Slim-Bundle]
+(https://repo1.maven.org/maven2/org/apache/hudi/hudi-utilities-slim-bundle_2.12/0.14.1/hudi-utilities-slim-bundle_2.12-0.14.1.jar)
+
+[Hudi-Spark3.3-Bundle](https://repo1.maven.org/maven2/org/apache/hudi/hudi-spark3.3-bundle_2.12/0.14.1/hudi-spark3.3-bundle_2.12-0.14.1.jar)
+
+```shell
+Copy the above two JARs to location: ./transactions-job-backup/jars/
+```
 
 ### Build
 
-### Create JAR
+### Create Flink JAR
 
 ```shell
+cd transactions-ml-features-job
+
 sbt clean assembly
+
+cp target/scala-2.12/transactions-ml-features-job-0.1.0.jar flink-docker/artifacts 
 ```
 
