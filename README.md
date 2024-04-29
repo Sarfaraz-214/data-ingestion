@@ -39,6 +39,28 @@ Make sure you have below in your local machine:
 5. Scala - 2.12.18
 6. Apache Flink - 1.14.6
 7. Docker - 25.0.2
+8. SBT - 1.4.9
+```
+
+### Download JAR
+[Hudi-Utilities-Slim-Bundle](https://repo1.maven.org/maven2/org/apache/hudi/hudi-utilities-slim-bundle_2.12/0.14.1/hudi-utilities-slim-bundle_2.12-0.14.1.jar)
+
+[Hudi-Spark3.3-Bundle](https://repo1.maven.org/maven2/org/apache/hudi/hudi-spark3.3-bundle_2.12/0.14.1/hudi-spark3.3-bundle_2.12-0.14.1.jar)
+
+```shell
+Copy the above two JARs to location: ./transactions-job-backup/jars/
+```
+
+### Build
+
+### Create Flink JAR
+
+```shell
+cd transactions-ml-features-job
+
+sbt clean assembly
+
+cp target/scala-2.12/transactions-ml-features-job-0.1.0.jar flink-docker/artifacts 
 ```
 
 ## Docker Setup
@@ -47,7 +69,9 @@ Follow below steps to spin up Docker containers:
 
 1. Confluent Kafka environment: 
 docker network create remote_bank 
+
 cd transactions-producer 
+
 docker-compose up --build -d
 
 Once it is up, the Control Center should be available at: http://localhost:9021/
@@ -81,26 +105,52 @@ docker ps
 
 ```
 
-
-### Download Jar
-[Hudi-Utilities-Slim-Bundle]
-(https://repo1.maven.org/maven2/org/apache/hudi/hudi-utilities-slim-bundle_2.12/0.14.1/hudi-utilities-slim-bundle_2.12-0.14.1.jar)
-
-[Hudi-Spark3.3-Bundle](https://repo1.maven.org/maven2/org/apache/hudi/hudi-spark3.3-bundle_2.12/0.14.1/hudi-spark3.3-bundle_2.12-0.14.1.jar)
+## Development Setup
 
 ```shell
-Copy the above two JARs to location: ./transactions-job-backup/jars/
+Terminal 1: Start producing Kafka messages
+
+cd transactions-producer
+
+python3 publish_message_kafka.py
+
+Note: You might need to set-up an venv and install necessary packages. PyCharm can help you here.
+
+---
+
+Terminal 2: Create table in Scylla DB:
+
+docker exec -it scylla-db cqlsh
+
+create keyspace if not exists remotebank with replication = {'class': 'SimpleStrategy', 'replication_factor': '1'};
+
+create table if not exists remotebank.transactions_per_user(user_id int, total_transactions_count int, primary key(user_id));
+
+select * from remotebank.transactions_per_user;
+
+---
+
+Terminal 3: Submit Flink Job
+
+docker exec -it flink-docker-jobmanager-1 bash
+
+./bin/flink run --detached --class job.FlinkJobRunner /opt/flink/usrlib/transactions-ml-features-job-0.1.0.jar
+
+
+If you want to cancel your job and re-run again, do below (this will maintain your State):
+
+flink cancel -s [savepointPath] [jobID]
+Eg: flink cancel -s /opt/flink/savepoint 74325e242cd751335c7f37736d00856d
+
+
+Run the job to pick up from the same savepoint/state:
+
+./bin/flink run --detached --class job.FlinkJobRunner -s </opt/flink/savepoint/savepoint-eaccc0-45b20785fc03/> /opt/flink/usrlib/transactions-ml-features-job-0.1.0.jar
+
+---
+
+Now check the data in Scylla DB and in '/transactions-ml-features-job/output' .
+
 ```
 
-### Build
-
-### Create Flink JAR
-
-```shell
-cd transactions-ml-features-job
-
-sbt clean assembly
-
-cp target/scala-2.12/transactions-ml-features-job-0.1.0.jar flink-docker/artifacts 
-```
-
+## Scope of Improvemnet
