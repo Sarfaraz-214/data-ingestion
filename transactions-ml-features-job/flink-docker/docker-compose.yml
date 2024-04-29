@@ -1,0 +1,38 @@
+version: "2.2"
+services:
+  jobmanager:
+    image: flink:1.14.6
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./artifacts:/opt/flink/usrlib
+      - ../output:/opt/flink/output:rw
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        bootstrap.servers: "broker:29092"
+        scylla.host: "scylla-db"
+        scylla.port: "9042"
+
+  taskmanager:
+    image: flink:1.14.6
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    scale: 2
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 2
+        bootstrap.servers: "broker:29092"
+        scylla.host: "scylla-db"
+        scylla.port: "9042"
+    volumes:
+      - ../output:/opt/flink/output:rw
+networks:
+  default:
+    external:
+      name: remote_bank
