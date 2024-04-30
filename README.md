@@ -185,3 +185,8 @@ Run the job to pick up from the same savepoint/state:
 ```
 
 ## Scope of Improvemnet
+```shell
+1. Unify both file storage layer to Hudi, currently the Flink job writes in AVRO format.
+
+2. Add RocksDB as backend for state store instead of in-memory backend, for better performance, fault tolerance and scalability.
+```
