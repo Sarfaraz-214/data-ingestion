@@ -1,6 +1,6 @@
-# README #
-
 # DATA-INGESTION-SERVICE
+
+<img src="https://github.com/Sarfaraz-214/data-ingestion/blob/main/RemoteBank.png" alt="Architecture logo" align="center" />
 
 ## Summary
 
