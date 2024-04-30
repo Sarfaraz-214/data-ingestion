@@ -83,7 +83,7 @@ cd transactions-job-backup
 
 docker build --no-cache -t spark-hudi . 
 
-docker run -d -v /Users/sarfarazhussain/projects/data-ingestion/data:/opt/data --name transactions-backup-job --network remote_bank spark-hudi:latest
+docker run -d -p 8080:8080 -p 8088:8081 -p 7077:7077 -v /Users/sarfarazhussain/projects/data-ingestion/data:/opt/data --name transactions-backup-job --network remote_bank spark-hudi:latest
 
 
 3. Scylla DB:
@@ -108,7 +108,7 @@ docker ps
 ## Development Setup
 
 ```shell
-Terminal 1: Start producing Kafka messages
+Terminal 1: Start producing Transaction messages to Kafka
 
 cd transactions-producer
 
@@ -118,7 +118,38 @@ Note: You might need to set-up an venv and install necessary packages. PyCharm c
 
 ---
 
-Terminal 2: Create table in Scylla DB:
+Terminal 2: Launch HoodieStreamer to consume Transaction messages and write to file system
+
+docker exec -it transactions-backup-job bash
+
+
+/opt/bitnami/spark/bin/spark-submit \
+--class org.apache.hudi.utilities.streamer.HoodieStreamer \
+--jars /opt/bitnami/spark/jar/hudi-spark3.3-bundle_2.12-0.14.1.jar \
+--properties-file /opt/config/spark-config.properties \
+--master local[*] \
+--name transactions-job-backup \
+--conf spark.executor.memory=4g \
+--conf spark.executor.memoryOverhead=1g \
+/opt/bitnami/spark/jar/hudi-utilities-slim-bundle_2.12-0.14.1.jar \
+--continuous \
+--source-limit 1000 \
+--min-sync-interval-seconds 300 \
+--table-type MERGE_ON_READ \
+--source-class org.apache.hudi.utilities.sources.AvroKafkaSource \
+--target-base-path /opt/data/transactions-job-backup-output/transactions \
+--target-table transactions \
+--source-ordering-field transaction_timestamp_millis \
+--schemaprovider-class org.apache.hudi.utilities.schema.SchemaRegistryProvider \
+--props /opt/data/transactions-job-backup-input/transactions.properties
+
+---
+
+> Now check the data in local filesystem by navigating to 'data/transactions-job-backup-output/transactions/' .
+
+---
+
+Terminal 3: Create table in Scylla DB:
 
 docker exec -it scylla-db cqlsh
 
@@ -130,7 +161,7 @@ select * from remotebank.transactions_per_user;
 
 ---
 
-Terminal 3: Submit Flink Job
+Terminal 4: Submit Flink Job
 
 docker exec -it flink-docker-jobmanager-1 bash
 
@@ -149,7 +180,7 @@ Run the job to pick up from the same savepoint/state:
 
 ---
 
-Now check the data in Scylla DB and in '/transactions-ml-features-job/output' .
+> Now check the data in Scylla DB and in '/transactions-ml-features-job/output' .
 
 ```
 
